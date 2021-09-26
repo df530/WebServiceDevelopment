@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from models.users import UserCreateModel, UserAuthModel
+from databases.users import get_user_by_auth, is_email_occupied, add_user, get_num_of_users
 
-wsd_app = FastAPI()
+datagram_app = FastAPI()
 
 user_list = [
     {
@@ -15,24 +16,24 @@ user_list = [
 ]
 
 
-@wsd_app.get("/statistics/")
+@datagram_app.get("/statistics/")
 async def get_statistics(indicator: str):
-    if indicator == "num_of_users":
-        return {'number of users': len(user_list)}
-    raise HTTPException(status_code=404, detail="Don't know this indicator")
+    if indicator != "num_of_users":
+        raise HTTPException(status_code=404, detail="Don't know this indicator")
+    get_num_of_users()
 
 
-class User(BaseModel):
-    mail: str = Field(..., regex=r".+@.+\..+")
-    password1: str
-    password2: str
-
-
-@wsd_app.post("/registration/", status_code=201)
-async def create_account(user: User):
-    if user.mail in [d['mail'] for d in user_list]:
+@datagram_app.post("/users/registration", status_code=201)
+async def register_user(user: UserCreateModel):
+    if is_email_occupied(user.email):
         raise HTTPException(status_code=403, detail="This mail has been already registered")
-    if user.password1 != user.password2:
-        raise HTTPException(status_code=403, detail="Passwords don't match")
-    user_list.append({'mail': user.mail, 'password': user.password1})
-    return "Account is created"
+    add_user(user.email, user.name, user.password.get_secret_value())
+    return "Registered successfully"
+
+
+@datagram_app.post("/users/auth")
+async def authorize(user_auth: UserAuthModel):
+    user = get_user_by_auth(user_auth.email, user_auth.password.get_secret_value())
+    if user is None:
+        raise HTTPException(status_code=403, detail="Wrong mail or password")
+    return user
