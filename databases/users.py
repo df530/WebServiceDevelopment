@@ -1,30 +1,42 @@
 from typing import Dict, Optional
+from datetime import date
 
 
 class UserMeta:
-    def __init__(self, email: str, name: str):
+    class AdditionalInfo:
+        status: Optional[str]
+        birth_date: Optional[date]
+
+        def __init__(self, status: Optional[str] = None, birth_date: Optional[date] = None):
+            self.status = status
+            self.birth_date = birth_date
+
+    email: str
+    name: str
+    additional_info: AdditionalInfo
+
+    def __init__(self, email: str, name: str, additional_info: AdditionalInfo = AdditionalInfo()):
         self.email = email
         self.name = name
+        self.additional_info = additional_info
 
 
 __id_pwd: Dict[int, str] = {}
 __id_user_meta: Dict[int, UserMeta] = {}
+__email_id: Dict[str, int] = {}
 
 
 def get_user_by_auth(email: str, password: str) -> Optional[UserMeta]:
-    for (id, user_meta) in __id_user_meta.items():
-        if user_meta.email == email:
-            if __id_pwd[id] != password:
-                return None
-            return user_meta
-    return None
+    if not is_email_occupied(email):
+        return None
+    id = __email_id[email]
+    if __id_pwd[id] != password:
+        return None
+    return __id_user_meta[id]
 
 
 def is_email_occupied(email: str) -> bool:
-    for (_, user_meta) in __id_user_meta.items():
-        if user_meta.email == email:
-            return True
-    return False
+    return email in __email_id
 
 
 def add_user(email: str, name: str, password: str):
@@ -33,6 +45,7 @@ def add_user(email: str, name: str, password: str):
     id = len(__id_pwd)
     __id_pwd[id] = password
     __id_user_meta[id] = UserMeta(email, name)
+    __email_id[email] = id
 
 
 def get_num_of_users():

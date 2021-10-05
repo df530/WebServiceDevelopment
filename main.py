@@ -1,19 +1,12 @@
 from fastapi import FastAPI, HTTPException
-from models.users import UserCreateModel, UserAuthModel
+from pydantic_models.users import UserCreateModel, UserAuthModel
 from databases.users import get_user_by_auth, is_email_occupied, add_user, get_num_of_users
+from strawberry_types import Query
+from strawberry.asgi import GraphQL
+import strawberry
+
 
 datagram_app = FastAPI()
-
-user_list = [
-    {
-        'mail': 'abc@yandex.ru',
-        'password': 'abc_pwd'
-    },
-    {
-        'mail': 'qwerty@gmail.com',
-        'password': 'qwerty'
-    }
-]
 
 
 @datagram_app.get("/statistics/")
@@ -37,3 +30,9 @@ async def authorize(user_auth: UserAuthModel):
     if user is None:
         raise HTTPException(status_code=403, detail="Wrong mail or password")
     return user
+
+
+schema = strawberry.Schema(query=Query)
+graphql_app = GraphQL(schema)
+datagram_app.add_route("/graphql", graphql_app)
+datagram_app.add_websocket_route("/graphql", graphql_app)
